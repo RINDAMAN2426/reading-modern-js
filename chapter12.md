@@ -233,3 +233,159 @@ ECMAScript 사양에서 명시적인 제한은 없음. 물론 물리적 한계�
 `node.js`에서는 모듈 시스템에 의해 파일이 독립적인 `scope`를 갖기 때문에 가장 바깥 영역에서 반환문을 사용해도 `SyntaxError`에 해당되지 않음
 
 ## 참조에 의한 전달과 외부 상태의 변경
+
+매개 변수 또한 값의 전달 방식을 `pass by value`,`pass by reference`로 동일함
+
+```js
+function change(num, obj) {
+  num += 1;
+  obj.foo = "baz";
+}
+
+var num = 1;
+var obj = { foo: "bar" };
+
+console.log(num); // 1
+console.log(obj); // { foo: 'bar' }
+
+change(num, obj);
+
+console.log(num); // 1
+// primitive value는 원본을 수정하지 않음
+
+console.log(obj); // object는 원본이 수정됨
+```
+
+`primitive value`는 `immutable`, `object`는 `mutable`
+
+`object`의 값의 변경을 추적하기 위해선 `Observer Pattern`등을 통해 해당 `object`의 참조를 공유하는 모든 변수들에게 사실을 공유 및 추가 대응이 필요. 또는 이 문제 해결을 위한 방법 중 하나는 `object`를 `immutable object`로 만들면 가능함
+
+`object`의 변경이 필요한 경우 `defensive copy`를 통해, 원본 `object`를 완전히 복사(`deep copy`)하여 새로운 `object`를 생성 및 재할당을 통한 교체를 하면, side effect를 줄일 수 있음
+
+## 다양한 함수의 형태
+
+### IIFE (Immediately Invoked Function Expression)
+
+정의와 동시에 호출되며, 단 한 번만 호출이 가능한 함수
+
+```js
+(function () {
+  console.log("hello world");
+})(); // hello world
+```
+
+함수 이름이 있는 기명 함수도 가능함. 단 그룹 연산자`(...)` 내의 기명 함수는 함수 리터럴로 평가되기 때문에 외부에서 다시 호출할 수는 없음
+
+```js
+var greeting = (function () {
+  var hello = "hello ";
+  var world = "world";
+  return hello + world;
+})();
+
+console.log(greeting); // hello world
+
+greeting = (function (greet, person) {
+  return greet + person;
+})("안녕하세요 ", "brouk");
+
+console.log(greeting); // 안녕하세요 brouk
+```
+
+`IIFE` 또한 값의 반환과 인수 전달이 가능함
+
+### Recursive Function
+
+```js
+function facto(n) {
+  if (n <= 1) return 1;
+
+  return n * facto(n - 1);
+}
+
+console.log(facto(1)); // 1! = 1
+console.log(facto(2)); // 2! = 2
+console.log(facto(3)); // 3! = 6
+console.log(facto(4)); // 4! = 24
+```
+
+함수 내부에서는 함수 식별자를 이용한 자기 자신 호출이 가능. `Recursive Function`은 무한 재귀 호출하기 때문에 탈출 조건이 반드시 필요함. 탈출 조건이 없다면 무한 호출되어 `stack overflow` 발생
+
+### Nested Function
+
+함수 내부에 정의된 함수를 `nested function` 혹은 `inner function`이라하며, `nested function`을 포함하는 함수는 `outer function`이라 부름. `outer function`은 외부에서만 호출이 가능. `inner function`은 보통 `outer function`의 `helper function` 역할을 수행함
+
+```js
+function outer() {
+  var person = "brouk";
+
+  function inner() {
+    var greet = "Hello, ";
+
+    console.log(greet + person);
+  }
+
+  inner();
+}
+
+outer();
+```
+
+### Callback Function
+
+```js
+function loop(count, callback) {
+  for (var i = 0; i < count; i++) {
+    callback(i);
+  }
+}
+
+var log = function (i) {
+  console.log(i);
+};
+
+loop(5, log);
+```
+
+`callback`이라는 파라미터를 추상화하여 외부에서 전달받아, 내부에서 실행함
+
+함수의 파라미터를 통하여 다른 함수 내부로 전달되는 함수를 `callback function`이라고 함. `callback function`을 전달받는 함수를 `High-Order Function`이라고 함
+
+`inner`와 `outer`의 관계처럼 `callback` 또한 `HOF`의 `helper function` 역할을 함
+
+`callback function`은 호출 시점을 결정해서 호출하기 때문에 함수 호출이 아닌 함수 자체를 전달해야함. 일반적으로는 익명 함수 리터럴을 통하여 전달함
+
+`callback function`은 비동기 처리, 배열 고차 함수 등에서 많이 사용됨 (`map`,`filter`,`reduce` 등등)
+
+### Pure Function & Impure Function
+
+함수 호출이 side effect가 없는 경우 `pure`, 발생할 경우 `impure`
+
+`pure function`은 일반적으로, 하나 이상의 `argument`를 전달 받으며, 해당 값을 변경하지 않는 것이 기본. 또한 외부 상태에도 영햐을 주지 않아야 함
+
+```js
+var number = 0;
+
+function pureIncrease(num) {
+  return ++num;
+}
+
+console.log(number); // 0
+
+pureIncrease(number);
+console.log(number); // 0
+
+number = pureIncrease(number);
+console.log(number); // 1
+
+number = 0;
+
+function impureIncrease() {
+  return ++number;
+}
+
+console.log(number); // 0
+
+impureIncrease();
+console.log(number); // 1
+```
